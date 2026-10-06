@@ -38,7 +38,7 @@ Deno.serve(async (request: Request) => {
     let body;
     try { body = await request.json(); } catch { return respond({ error: 'Request body must be JSON.' }, 400); }
     if (body.command) {
-      if (!['NOW', 'DELTA'].includes(String(body.command).trim().toUpperCase())) return respond({ error: 'Supported live commands: NOW, DELTA.' }, 400);
+      if (!['NOW', 'DELTA', 'DELTA10', 'DELTA 10'].includes(String(body.command).trim().toUpperCase())) return respond({ error: 'Supported live commands: NOW, DELTA, DELTA 10.' }, 400);
       return respond(runLiveCommand(body.command, feed));
     }
   }

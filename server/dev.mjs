@@ -39,7 +39,7 @@ const server = http.createServer(async (req, res) => {
       for await (const chunk of req) { body += chunk; if (body.length > 2048) return json(res, 413, { error: 'Command request is too large.' }); }
       let parsed;
       try { parsed = JSON.parse(body); } catch { return json(res, 400, { error: 'Command request must be JSON.' }); }
-      if (!['NOW', 'DELTA'].includes(String(parsed.command).trim().toUpperCase())) return json(res, 400, { error: 'Supported live commands: NOW, DELTA.' });
+      if (!['NOW', 'DELTA', 'DELTA10', 'DELTA 10'].includes(String(parsed.command).trim().toUpperCase())) return json(res, 400, { error: 'Supported live commands: NOW, DELTA, DELTA 10.' });
       return json(res, 200, runLiveCommand(parsed.command, await service.getFeed()));
     }
     vite.middlewares(req, res);

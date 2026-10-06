@@ -1,0 +1,12 @@
+Touchline live demo — 6 October 2026, approximately 20:04 BST.
+
+36.77-second silent recording made from actual browser captures, with ITV's official England–Czechia broadcast beside the running local terminal. NOW and DELTA show real Sky Sports observations and source links. DELTA compares observations retrieved at 19:03:12 UTC and 19:04:14 UTC.
+
+Live facts/statistics refresh through the shared 60-second cache. Source publication times and the source match clock were unavailable. Bookmaker quotes remain unavailable; no synthetic prices were presented as live prices. No OpenAI API key was used for the recording.
+
+The recording samples browser screenshots at approximately five frames per second and encodes H.264 at 30 fps. Capture gaps hold the last real frame; no image interpolation or fabricated match data was used. ITV is displayed in its separate official browser player, not embedded or restreamed by the terminal.
+
+Open the terminal: http://localhost:5173/?mode=live
+Start it from this repository with: npm run dev
+
+Validation: 78 tests pass; production build passes. The MP4 was decoded and its live-match/DELTA frame inspected.

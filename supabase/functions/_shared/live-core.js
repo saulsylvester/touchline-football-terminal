@@ -404,11 +404,12 @@ export function createFeedService({ retrieve, storage = {}, now = () => Date.now
 }
 
 export function runLiveCommand(command, feed) {
+  const normalizedCommand = String(command).trim().toUpperCase();
   const snapshot = feed.snapshot;
   if (!snapshot) return { title: 'Live data unavailable', lines: [feed.error || 'No verified live snapshot has been retrieved.'], evidenceIds: [] };
   const warning = feed.status === 'stale' ? [`Stale data: ${feed.error || 'latest retrieval failed'}`] : [];
   const score = snapshot.score ? snapshot.score.join('–') : 'Score not exposed';
-  if (String(command).trim().toUpperCase() === 'NOW') return {
+  if (normalizedCommand === 'NOW') return {
     title: 'NOW · England vs Czechia',
     lines: [...warning, `${score} · ${snapshot.phase.replaceAll('_', ' ')}${snapshot.minute === null ? '' : ` · ${snapshot.minute}′`}`,
       `Retrieved ${snapshot.fetchedAt}`,
@@ -417,16 +418,37 @@ export function runLiveCommand(command, feed) {
       ...snapshot.stats.map((stat) => `${stat.name}: ${stat.home ?? '—'} / ${stat.away ?? '—'}${stat.unit} · ${stat.sourceName}`)],
     evidenceIds: [snapshot.id],
   };
-  if (String(command).trim().toUpperCase() !== 'DELTA') return { title: 'Live command', lines: ['Use NOW or DELTA in live mode.'], evidenceIds: [] };
-  const previous = [...feed.history].reverse().find((item) => item.id !== snapshot.id);
-  if (!previous) return { title: 'DELTA · Waiting for another observation', lines: [...warning, 'No earlier different verified snapshot is available.'], evidenceIds: [snapshot.id] };
+  const tenMinutes = /^DELTA\s*10$/.test(normalizedCommand);
+  if (normalizedCommand !== 'DELTA' && !tenMinutes) return { title: 'Live command', lines: ['Use NOW, DELTA or DELTA 10 in live mode.'], evidenceIds: [] };
+  const currentTime = Date.parse(snapshot.fetchedAt);
+  const observations = feed.history.filter((item) => item.fixtureId === snapshot.fixtureId && item.id !== snapshot.id
+    && Number.isFinite(Date.parse(item.fetchedAt)) && Date.parse(item.fetchedAt) <= currentTime
+    && (!tenMinutes || Date.parse(item.fetchedAt) >= currentTime - 10 * 60_000))
+    .sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
+  const previous = tenMinutes ? observations[0] : observations.at(-1);
+  const label = tenMinutes ? 'DELTA 10' : 'DELTA';
+  const scope = tenMinutes ? ['Last ten retrieval minutes; comparing available observations only.'] : [];
+  if (!previous) return { title: `${label} · Waiting for another observation`, lines: [...warning, ...scope, 'No earlier different verified snapshot is available' + (tenMinutes ? ' within the last ten retrieval minutes.' : '.')], evidenceIds: [snapshot.id] };
   const oldQuotes = new Map(previous.quotes.map((quote) => [quoteIdentity(quote), quote]));
   const lines = [];
+  const scoreLabel = (value) => value ? value.join('–') : 'not exposed';
+  if (scoreLabel(previous.score) !== scoreLabel(snapshot.score)) lines.push(`Score: ${scoreLabel(previous.score)} → ${scoreLabel(snapshot.score)} · verified match sources`);
+  if (previous.phase !== snapshot.phase) lines.push(`Phase: ${previous.phase.replaceAll('_', ' ')} → ${snapshot.phase.replaceAll('_', ' ')} · verified match sources`);
+  const statIdentity = (stat) => JSON.stringify([stat.name.toLowerCase(), stat.unit, stat.sourceUrl]);
+  const statValue = (stat) => `${stat.home ?? '—'} / ${stat.away ?? '—'}${stat.unit}`;
+  const oldStats = new Map(previous.stats.map((stat) => [statIdentity(stat), stat]));
+  const currentStats = new Set(snapshot.stats.map(statIdentity));
+  for (const stat of snapshot.stats) {
+    const before = oldStats.get(statIdentity(stat));
+    if (!before) lines.push(`${stat.name}: newly observed ${statValue(stat)} · ${stat.sourceName}`);
+    else if (before.home !== stat.home || before.away !== stat.away) lines.push(`${stat.name}: ${statValue(before)} → ${statValue(stat)} · ${stat.sourceName}`);
+  }
+  for (const stat of previous.stats) if (!currentStats.has(statIdentity(stat))) lines.push(`${stat.name}: no longer exposed · ${stat.sourceName}`);
   for (const quote of snapshot.quotes) {
     const before = oldQuotes.get(quoteIdentity(quote));
     if (!before) lines.push(`${quote.bookmaker} · ${quote.outcome}: newly observed at ${quote.price.toFixed(2)} · ${quote.sourceName}`);
     else if (before.price !== quote.price) lines.push(`${quote.bookmaker} · ${quote.outcome}: ${before.price.toFixed(2)} → ${quote.price.toFixed(2)} · ${quote.sourceName}`);
   }
   for (const quote of previous.quotes) if (!snapshot.quotes.some((item) => quoteIdentity(item) === quoteIdentity(quote))) lines.push(`${quote.bookmaker} · ${quote.outcome}: no longer exposed · ${quote.sourceName}`);
-  return { title: 'DELTA · Verified observations', lines: [...warning, `${previous.fetchedAt} → ${snapshot.fetchedAt}`, ...lines, ...(lines.length ? [] : ['No observed bookmaker price changes between these snapshots.'])], evidenceIds: [previous.id, snapshot.id] };
+  return { title: `${label} · Verified observations`, lines: [...warning, ...scope, `${previous.fetchedAt} → ${snapshot.fetchedAt}`, ...lines, ...(lines.length ? [] : ['No observed score, phase, statistic or bookmaker price changes between these snapshots.'])], evidenceIds: [previous.id, snapshot.id] };
 }

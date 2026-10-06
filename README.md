@@ -2,6 +2,12 @@
 
 A football market terminal with a bundled replay and a source-grounded live desk. The replay and free public live match facts work without an API key. Optional OpenAI web retrieval can collect publicly exposed odds.
 
+### Context
+
+This is a submission as part of the [GPT-6 Astra Hackathon London](https://cerebralvalley.ai/e/openai-gpt-6-astra-london) to demonstrate the capability of OpenAI's latest models and Lovable.
+
+## Config
+
 **TAPE needs no API key and makes no OpenAI requests.** Its prices and commands run locally; YouTube playback still needs an internet connection. The manual clock works with the bundled replay when the player is unavailable.
 
 **LIVE defaults to free public Sky Sports retrieval when the API key is blank.** It validates the exact fixture, date and status, then exposes observed match facts and available statistics. Pre-match placeholders stay hidden. This path makes no OpenAI requests; odds remain unavailable.

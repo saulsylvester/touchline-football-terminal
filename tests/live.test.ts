@@ -210,7 +210,56 @@ describe('shared refresh cache', () => {
     const before = snapshot(); const after = snapshot();
     after.quotes[0].sourceUpdatedAt = fetchedAt; after.id = 'new-source-time';
     expect(snapshotFingerprint(before)).not.toBe(snapshotFingerprint(after));
-    expect(runLiveCommand('DELTA', feed(after, [before, after])).lines.at(-1)).toContain('No observed bookmaker price changes');
+    expect(runLiveCommand('DELTA', feed(after, [before, after])).lines.at(-1)).toContain('No observed score, phase, statistic or bookmaker price changes');
+  });
+});
+
+describe('live statistical comparisons', () => {
+  it('reports actual score, phase and paired statistic changes without requiring any odds', () => {
+    const before = parsePublicSkySnapshot(skyFixture(1), skyHtml(), fetchedAt);
+    const nextFixture = skyFixture(2); nextFixture.football[0].teams.home.score = 3;
+    const after = parsePublicSkySnapshot(nextFixture, skyHtml('', ['65%', '35%']).replace('>6<', '>8<'), '2026-10-06T18:47:00.000Z');
+    const result = runLiveCommand('DELTA', feed(after, [before, after]));
+    expect(result.lines).toContain('Score: 2–1 → 3–1 · verified match sources');
+    expect(result.lines).toContain('Phase: LIVE → HALF TIME · verified match sources');
+    expect(result.lines).toContain('Possession: 60.5 / 39.5% → 65 / 35% · Sky Sports');
+    expect(result.lines).toContain('Shots: 6 / 4 → 8 / 4 · Sky Sports');
+    expect(result.evidenceIds).toEqual([before.id, after.id]);
+    expect(result.lines).toContain(`${before.fetchedAt} → ${after.fetchedAt}`);
+  });
+  it('never compares a statistic across different sources or units, or assumes absent data is zero', () => {
+    const before = parsePublicSkySnapshot(skyFixture(), skyHtml(), fetchedAt);
+    const after = structuredClone(before); after.id = 'different-source'; after.fetchedAt = '2026-10-06T18:46:00.000Z';
+    after.stats[0] = { ...after.stats[0], home: 70, away: 30, sourceUrl: url, sourceName: 'Oddschecker' };
+    after.stats[1] = { ...after.stats[1], home: null, unit: '%' };
+    const result = runLiveCommand('DELTA', feed(after, [before, after]));
+    expect(result.lines).toContain('Possession: newly observed 70 / 30% · Oddschecker');
+    expect(result.lines).toContain('Possession: no longer exposed · Sky Sports');
+    expect(result.lines).toContain('Shots: newly observed — / 4% · Sky Sports');
+    expect(result.lines.some(line => line.includes('60.5 / 39.5% →'))).toBe(false);
+    expect(result.lines.some(line => line.includes('6 / 4 →'))).toBe(false);
+  });
+  it('bounds DELTA 10 to actual observations and uses their timestamps rather than a fabricated cutoff snapshot', () => {
+    const old = snapshot(1.1, '2026-10-06T18:30:00.000Z');
+    const first = snapshot(1.2, '2026-10-06T18:42:00.000Z');
+    const recent = snapshot(1.3, '2026-10-06T18:48:00.000Z');
+    const current = snapshot(1.4, '2026-10-06T18:50:00.000Z');
+    const result = runLiveCommand('DELTA10', feed(current, [old, first, recent, current]));
+    expect(result.lines).toContain(`${first.fetchedAt} → ${current.fetchedAt}`);
+    expect(result.lines.some(line => line.includes('1.20 → 1.40'))).toBe(true);
+    expect(result.lines.join(' ')).not.toContain(old.fetchedAt);
+    expect(result.evidenceIds).toEqual([first.id, current.id]);
+    expect(runLiveCommand('DELTA 10', feed(current, [old, current])).title).toContain('Waiting');
+    expect(runLiveCommand('DELTA', feed(current, [old, first, recent, current])).evidenceIds).toEqual([recent.id, current.id]);
+  });
+  it('keeps stale retrieval warnings and ignores future or unrelated fixture observations', () => {
+    const before = snapshot(1.2); const current = snapshot(1.4, '2026-10-06T18:47:00.000Z');
+    const future = snapshot(1.8, '2026-10-06T18:48:00.000Z');
+    const unrelated = { ...snapshot(1.9, '2026-10-06T18:46:00.000Z'), fixtureId: 'other-fixture' };
+    const state = { ...feed(current, [before, unrelated, future, current]), status: 'stale' as const, error: 'Public source failed' };
+    const result = runLiveCommand('DELTA', state);
+    expect(result.lines[0]).toBe('Stale data: Public source failed');
+    expect(result.evidenceIds).toEqual([before.id, current.id]);
   });
 });
 
