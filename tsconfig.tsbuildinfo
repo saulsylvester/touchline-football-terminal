@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/youtubeplayer.tsx","./src/main.tsx","./src/playbackclock.ts","./src/types.ts","./src/live/core.d.ts","./src/replay/commands.ts","./src/replay/engine.ts","./src/replay/manifest.ts","./tests/live.test.ts","./tests/playback.test.ts","./tests/replay.test.ts","./vite.config.ts"],"version":"5.7.3"}

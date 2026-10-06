@@ -1,0 +1,2 @@
+[functions.match-feed]
+verify_jwt = false
