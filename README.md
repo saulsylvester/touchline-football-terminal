@@ -4,7 +4,10 @@ A football market terminal with a bundled replay and a source-grounded live desk
 
 ### Context
 
-This is a submission as part of the [GPT-6 Astra Hackathon London](https://cerebralvalley.ai/e/openai-gpt-6-astra-london) to demonstrate the capability of OpenAI's latest models and Lovable.
+In order to enable my startup's digital payment routes and to make up for the fact I'm missing [England vs Czech Republic in the Nations League;](https://www.bbc.co.uk/sport/football/live/cm0qxqyp35jyt) I thought to myself: if I'm missing this game this time -- how could I make sure the next match I watch is more than just the match on screen?
+
+And so this repo contains a Bloomberg style football market terminal: replay a match with a video synced to a synthetic odds model, or switch to a live desk showing sourced match facts and available odds. 
+All powered by Astra’s visual intelligence: it watches the match alongside you, connects what happens on the pitch to the market, and shows the evidence behind its read.
 
 ## Config
 
